@@ -1,0 +1,56 @@
+# K3s bootstrap 단계에서 Argo CD chart에 주입할 HelmChartConfig다.
+# 현재는 Argo CD를 가볍게 쓰기 위해 Dex, Notifications, ApplicationSet은 끄고,
+# 앱 수가 늘어나면 그때 ApplicationSet을 다시 켜는 방향으로 둔다.
+
+apiVersion: helm.cattle.io/v1
+kind: HelmChartConfig
+metadata:
+  name: argocd
+  namespace: kube-system
+spec:
+  valuesContent: |-
+    dex:
+      enabled: false
+
+    notifications:
+      enabled: false
+
+    applicationSet:
+      enabled: false
+
+    controller:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 300m
+          memory: 256Mi
+
+    repoServer:
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+
+    server:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+
+    redis:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi

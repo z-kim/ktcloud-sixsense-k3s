@@ -6,6 +6,13 @@
       - k3s_token | length > 0
     fail_msg: "Set k3s_token in vars/dev-runtime.yaml and pass it with --extra-vars @vars/dev-runtime.yaml."
 
+- name: Validate optional Argo CD private repository variables
+  ansible.builtin.assert:
+    that:
+      - (argocd_repo_url | default('') | length == 0 and argocd_repo_ssh_private_key | default('') | length == 0) or
+        (argocd_repo_url | default('') | length > 0 and argocd_repo_ssh_private_key | default('') | length > 0)
+    fail_msg: "Set both argocd_repo_url and argocd_repo_ssh_private_key together, or leave both empty."
+
 - name: Update apt cache for k3s server packages
   ansible.builtin.apt:
     update_cache: true
@@ -96,6 +103,35 @@
     src: "{{ playbook_dir }}/../../cluster/bootstrap/node-exporter/daemonset.yaml"
     dest: /var/lib/rancher/k3s/server/manifests/22-node-exporter-daemonset.yaml
     mode: "0644"
+
+- name: Copy Argo CD bootstrap manifest
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: "0644"
+  loop:
+    - src: "{{ playbook_dir }}/../../cluster/bootstrap/argocd/helmchart.yaml"
+      dest: /var/lib/rancher/k3s/server/manifests/23-argocd-helmchart.yaml
+    - src: "{{ playbook_dir }}/../../cluster/bootstrap/argocd/values.yaml"
+      dest: /var/lib/rancher/k3s/server/manifests/24-argocd-values.yaml
+
+- name: Render Argo CD private repository secret when SSH key is provided
+  ansible.builtin.template:
+    src: argocd-repo-secret.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/25-argocd-repo-secret.yaml
+    mode: "0600"
+  when:
+    - argocd_repo_url | default('') | length > 0
+    - argocd_repo_ssh_private_key | default('') | length > 0
+  no_log: true
+
+- name: Remove Argo CD private repository secret when SSH key is not provided
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests/25-argocd-repo-secret.yaml
+    state: absent
+  when:
+    - argocd_repo_url | default('') | length == 0
+    - argocd_repo_ssh_private_key | default('') | length == 0
 
 - name: Render app database secret manifest when RDS is enabled
   ansible.builtin.template:
