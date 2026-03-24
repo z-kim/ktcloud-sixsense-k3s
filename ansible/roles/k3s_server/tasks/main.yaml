@@ -82,10 +82,10 @@
     dest: "{{ item.dest }}"
     mode: "0644"
   loop:
-    - src: "{{ playbook_dir }}/../../cluster/bootstrap/ingress-nginx/helmchart.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/10-ingress-nginx-helmchart.yaml
     - src: "{{ playbook_dir }}/../../cluster/bootstrap/ingress-nginx/values.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/11-ingress-nginx-values.yaml
+      dest: /var/lib/rancher/k3s/server/manifests/10-ingress-nginx-values.yaml
+    - src: "{{ playbook_dir }}/../../cluster/bootstrap/ingress-nginx/helmchart.yaml"
+      dest: /var/lib/rancher/k3s/server/manifests/11-ingress-nginx-helmchart.yaml
 
 - name: Copy falco bootstrap manifests
   ansible.builtin.copy:
@@ -93,10 +93,10 @@
     dest: "{{ item.dest }}"
     mode: "0644"
   loop:
+    - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/values.yaml"
+      dest: /var/lib/rancher/k3s/server/manifests/20-falco-values.yaml
     - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/helmchart.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/20-falco-helmchart.yaml
-    - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/helmchart-config.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/21-falco-helmchart-config.yaml
+      dest: /var/lib/rancher/k3s/server/manifests/21-falco-helmchart.yaml
 
 - name: Copy node exporter bootstrap manifest
   ansible.builtin.copy:
@@ -110,10 +110,10 @@
     dest: "{{ item.dest }}"
     mode: "0644"
   loop:
-    - src: "{{ playbook_dir }}/../../cluster/bootstrap/argocd/helmchart.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/23-argocd-helmchart.yaml
     - src: "{{ playbook_dir }}/../../cluster/bootstrap/argocd/values.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/24-argocd-values.yaml
+      dest: /var/lib/rancher/k3s/server/manifests/23-argocd-values.yaml
+    - src: "{{ playbook_dir }}/../../cluster/bootstrap/argocd/helmchart.yaml"
+      dest: /var/lib/rancher/k3s/server/manifests/24-argocd-helmchart.yaml
 
 - name: Render Argo CD private repository secret when SSH key is provided
   ansible.builtin.template:
@@ -145,6 +145,23 @@
     path: /var/lib/rancher/k3s/server/manifests/30-checkins-db-secret.yaml
     state: absent
   when: mysql_rds_database_url | default('') | length == 0
+
+- name: Create temporary checkins workload directory on control-plane
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/cluster/workloads/apps"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Copy checkins workload directory to control-plane home as a temporary convenience
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../cluster/workloads/apps/checkins/"
+    dest: "/home/{{ ansible_user }}/cluster/workloads/apps/checkins/"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+    directory_mode: "0755"
 
 - name: Create kubeconfig directory for the default SSH user
   ansible.builtin.file:

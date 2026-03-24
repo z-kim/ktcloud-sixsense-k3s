@@ -5,3 +5,8 @@ k3s_token: "replace-with-terraform-output"
 # terraform -chdir=../infra/environments/dev output -raw mysql_rds_database_url
 # 또는 db 접속주소 (형식: mysql://username:password@DB주소:3306/DB이름)
 mysql_rds_database_url: ""
+
+# Argo CD가 private Git 저장소를 SSH로 읽어야 할 때만 설정
+# 예: git@github.com:owner/repo.git
+argocd_repo_url: ""
+argocd_repo_ssh_private_key: ""
