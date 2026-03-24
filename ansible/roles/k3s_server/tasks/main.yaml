@@ -86,8 +86,8 @@
     dest: "{{ item.dest }}"
     mode: "0644"
   loop:
-    - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/helmchart-config.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/20-falco-helmchart-config.yaml
+    - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/values.yaml"
+      dest: /var/lib/rancher/k3s/server/manifests/20-falco-values.yaml
     - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/helmchart.yaml"
       dest: /var/lib/rancher/k3s/server/manifests/21-falco-helmchart.yaml
 

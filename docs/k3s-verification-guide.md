@@ -226,7 +226,7 @@ curl http://<worker-private-ip>:9100/metrics | grep node_filesystem
 
 현재 baseline 에는 Falcosidekick 이 켜져 있습니다.
 
-- [helmchart-config.yaml](../cluster/bootstrap/falco/helmchart-config.yaml)
+- [values.yaml](../cluster/bootstrap/falco/values.yaml)
 
 현재 의도는 아래와 같습니다.
 
