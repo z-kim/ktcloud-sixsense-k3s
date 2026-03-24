@@ -75,10 +75,10 @@
     dest: "{{ item.dest }}"
     mode: "0644"
   loop:
-    - src: "{{ playbook_dir }}/../../cluster/bootstrap/ingress-nginx/helmchart.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/10-ingress-nginx-helmchart.yaml
     - src: "{{ playbook_dir }}/../../cluster/bootstrap/ingress-nginx/values.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/11-ingress-nginx-values.yaml
+      dest: /var/lib/rancher/k3s/server/manifests/10-ingress-nginx-values.yaml    
+    - src: "{{ playbook_dir }}/../../cluster/bootstrap/ingress-nginx/helmchart.yaml"
+      dest: /var/lib/rancher/k3s/server/manifests/11-ingress-nginx-helmchart.yaml
 
 - name: Copy falco bootstrap manifests
   ansible.builtin.copy:
@@ -86,10 +86,10 @@
     dest: "{{ item.dest }}"
     mode: "0644"
   loop:
-    - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/helmchart.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/20-falco-helmchart.yaml
     - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/helmchart-config.yaml"
-      dest: /var/lib/rancher/k3s/server/manifests/21-falco-helmchart-config.yaml
+      dest: /var/lib/rancher/k3s/server/manifests/20-falco-helmchart-config.yaml
+    - src: "{{ playbook_dir }}/../../cluster/bootstrap/falco/helmchart.yaml"
+      dest: /var/lib/rancher/k3s/server/manifests/21-falco-helmchart.yaml
 
 - name: Copy node exporter bootstrap manifest
   ansible.builtin.copy:
