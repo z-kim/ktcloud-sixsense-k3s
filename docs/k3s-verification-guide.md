@@ -10,160 +10,55 @@
 
 ## 1. HPA 와 장애 대응 확인
 
-### 1.1 Deployment 기본 개념
+이 문서에서는 HPA 가 왜 늘어나고 줄어드는지까지 자세히 설명하기보다는, 현재 상태를 어떻게 확인할지에 집중합니다.
 
-`Deployment`는 "이 앱 Pod를 몇 개, 어떤 방식으로 계속 유지할지"를 관리하는 리소스입니다.
+### 1.1 Checkins 기본 상태 확인
 
-아주 단순하게 보면 아래처럼 이해하면 됩니다.
-
-- `Deployment`: 원하는 상태를 선언합니다.
-- `ReplicaSet`: 그 상태를 맞추는 중간 관리자입니다.
-- `Pod`: 실제로 실행되는 컨테이너 묶음입니다.
-
-즉 `Deployment/checkins` 가 replica 를 `2` 로 유지하라고 되어 있으면, Pod 하나를 직접 삭제해도 Kubernetes 는 다시 2개를 맞추려 합니다. 그래서 Pod 를 지웠는데 다시 보이는 것은 `Deployment` 의 정상 복구 동작입니다.
-
-### 1.2 현재 Deployment 구성
-
-현재 [deployment.yaml](../cluster/workloads/apps/checkins/base/deployment.yaml) 에서 중요한 부분은 아래와 같습니다.
-
-- `metadata.name: checkins`
-- `spec.replicas: 2`
-- `selector.matchLabels.app: checkins`
-- `template.metadata.labels.app: checkins`
-- worker node 에만 스케줄되도록 `nodeSelector`
-- `/ready`, `/health` probe 사용
-
-즉 현재 의도는 아래와 같습니다.
-
-- 기본 Pod 수는 2개입니다.
-- worker node 에만 올립니다.
-- readiness / liveness 로 상태를 확인합니다.
-
-### 1.3 Deployment 볼 때 가장 많이 쓰는 명령
-
-현재 상태:
+먼저 아래 명령으로 기본 상태를 확인합니다.
 
 ```bash
-kubectl get deploy -n apps
-kubectl describe deploy checkins -n apps
-```
-
-Pod 와 ReplicaSet 관계 보기:
-
-```bash
-kubectl get rs -n apps
+kubectl get deploy,hpa -n apps
 kubectl get pods -n apps -o wide
-kubectl get pods -n apps -w
-```
-
-롤아웃 상태 보기:
-
-```bash
+kubectl get ingress -n apps
 kubectl rollout status deployment/checkins -n apps
-kubectl rollout history deployment/checkins -n apps
 ```
 
-Pod 상세 보기:
+확인 포인트는 아래와 같습니다.
 
-```bash
-kubectl describe pod -n apps <pod-name>
-kubectl logs -n apps <pod-name>
-```
+- `deployment/checkins` 가 `Available` 상태인지 확인합니다.
+- `hpa/checkins` 가 보이는지 확인합니다.
+- Checkins Pod 가 worker node 에 올라가 있는지 확인합니다.
+- `ingress/checkins` 가 생성되어 있는지 확인합니다.
 
-### 1.4 HPA는 Deployment의 replica를 자동으로 바꾼다
+### 1.2 HPA 반응 간단 확인
 
-HPA 는 Pod 의 CPU / 메모리 같은 지표를 보고, 직접 Pod 를 만드는 게 아니라 대상 Deployment 의 replica 수를 조정합니다.
-
-현재 이 저장소에서는 아래처럼 설정되어 있습니다.
-
-- 대상: `Deployment/checkins`
-- 최소 replica: `2`
-- 최대 replica: `4`
-- 기준 지표: CPU
-- 목표값: `averageUtilization: 60`
-
-즉 HPA 는 `checkins` Deployment 를 보면서 아래처럼 동작합니다.
-
-- 부하가 낮으면 2개 근처 유지
-- 부하가 높으면 3개, 4개까지 증가
-
-### 1.5 현재 HPA 해석
-
-현재 HPA 는 CPU 사용률을 `requests.cpu` 기준으로 계산합니다.
-
-즉 HPA 의 `60%` 는 아래 뜻입니다.
-
-- `limit` 의 60% 가 아니라
-- `request` 의 60%
-
-현재 dev overlay 기준 값은 아래와 같습니다.
-
-- `requests.cpu: 150m`
-- `limits.cpu: 250m`
-- `requests.memory: 128Mi`
-- `limits.memory: 256Mi`
-
-### 1.6 HPA 반응 기준 이해
-
-즉 Pod 하나만 stress 해도 replica 가 늘어날 수 있습니다.
-
-### 1.7 scale-in 이 바로 일어나지 않는 이유
-
-Kubernetes HPA 는 보통 아래 특성으로 동작합니다.
-
-- 늘어날 때는 비교적 빠르고
-- 줄어들 때는 더 보수적입니다.
-
-기본 동작은 아래와 같습니다.
-
-- HPA sync 주기: 약 `15초`
-- scale-down stabilization window: 약 `300초`
-
-즉 stress 를 멈췄다고 replica 가 바로 `4 -> 2` 로 떨어지지 않을 수 있습니다.
-
-현재 `checkins` HPA 에는 별도 `behavior` 설정이 없으므로 Kubernetes 기본 동작을 따릅니다.
-
-### 1.8 실습용 명령 예시
-
-현재 상태 보기:
-
-```bash
-kubectl get deploy -n apps
-kubectl get hpa -n apps
-kubectl get pods -n apps -o wide
-kubectl top pod -n apps
-```
-
-Pod 하나에 CPU 부하 주기:
-
-```bash
-bash ops-scripts/stress-pods.sh -n apps -l app=checkins -p 1 -s 60
-```
-
-또는 직접 지정:
-
-```bash
-bash ops-scripts/stress-pods.sh -n apps -s 60 checkins-abcde
-```
-
-HPA 반응 보기:
+HPA 동작을 간단히 보고 싶다면 아래처럼 부하를 걸고 상태 변화를 봅니다.
 
 ```bash
 kubectl get hpa -n apps -w
 kubectl get pods -n apps -w
 ```
 
-Pod 자체를 지워서 Deployment 복구 보기:
+다른 터미널에서:
+
+```bash
+bash ops-scripts/stress-pods.sh -n apps -l app=checkins -p 1 -s 60
+```
+
+여기서는 replica 수가 실제로 바뀌는지 정도만 확인하면 충분합니다.
+
+### 1.3 Pod 복구 확인
+
+Pod 하나를 지웠을 때 다시 복구되는지만 보고 싶다면 아래 명령을 사용합니다.
 
 ```bash
 kubectl delete pod -n apps <pod-name>
 kubectl get pods -n apps -w
 ```
 
-worker node 를 AWS 에서 중지하거나 terminate 해서 ASG 재생성 보기:
+### 1.4 worker 장애 대응 확인
 
-- AWS 콘솔에서 worker 인스턴스를 중지하거나 terminate 합니다.
-- control-plane 에서 아래 명령으로 변화를 봅니다.
+worker node 장애 상황을 보려면 AWS 콘솔에서 worker 인스턴스를 중지하거나 terminate 한 뒤, control-plane 에서 아래 변화를 확인합니다.
 
 ```bash
 kubectl get nodes -w
@@ -171,12 +66,11 @@ kubectl get pods -n apps -o wide -w
 kubectl get pods -n ingress-nginx -o wide -w
 ```
 
-이 경우 아래 흐름을 기대할 수 있습니다.
+여기서는 아래 정도만 보면 됩니다.
 
-- 해당 node 가 `NotReady` 또는 `Unreachable` 로 바뀝니다.
-- app Pod 와 ingress-nginx Pod 가 영향을 받습니다.
-- toleration 시간이 지난 뒤 replacement Pod 가 다른 worker 에서 다시 뜰 수 있습니다.
-- 인스턴스 자체가 비정상으로 판단되면 ASG 가 새 worker 를 다시 생성할 수 있습니다.
+- 해당 node 가 `NotReady` 또는 `Unreachable` 로 바뀌는지
+- Checkins Pod 와 ingress-nginx Pod 가 영향 받는지
+- 대체 worker 가 뜬 뒤 다시 스케줄되는지
 
 ## 2. Node Exporter 확인
 
