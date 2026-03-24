@@ -110,6 +110,23 @@
     state: absent
   when: mysql_rds_database_url | default('') | length == 0
 
+- name: Create temporary checkins workload directory on control-plane
+  ansible.builtin.file:
+    path: "/home/{{ ansible_user }}/cluster/workloads/apps"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Copy checkins workload directory to control-plane home as a temporary convenience
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../cluster/workloads/apps/checkins/"
+    dest: "/home/{{ ansible_user }}/cluster/workloads/apps/checkins/"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+    directory_mode: "0755"
+
 - name: Create kubeconfig directory for the default SSH user
   ansible.builtin.file:
     path: "/home/{{ ansible_user }}/.kube"

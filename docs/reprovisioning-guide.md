@@ -126,28 +126,7 @@ ansible-playbook -i inventories/dev/aws_ec2.yaml playbooks/site.yaml \
 - `Role = bastion`
 - `Role = k3s-control-plane`
 
-즉 bastion IP나 k3s server private IP를 inventory 파일에 손으로 적지 않습니다.
-
-## 7. `cluster/` 폴더를 control-plane으로 복사합니다
-
-먼저 bastion public IP와 control-plane private IP를 확인합니다.
-
-```bash
-cd ..
-terraform -chdir=infra/environments/dev output -raw bastion_public_ip
-terraform -chdir=infra/environments/dev output -raw k3s_server_private_ip
-```
-
-그 다음 루트 디렉터리의 `cluster/` 폴더를 통째로 control-plane 홈 디렉터리로 복사합니다. WinSCP, Tabby SFTP 같은 도구를 사용해 올려도 되고, `scp` 명령을 사용해도 됩니다.
-
-```bash
-scp -r \
-  -o ProxyCommand="ssh -i ~/.ssh/<terraform.tfvars에 넣은 key pair 이름>.pem -W %h:%p ubuntu@<bastion_public_ip>" \
-  -i ~/.ssh/<terraform.tfvars에 넣은 key pair 이름>.pem \
-  cluster ubuntu@<k3s_server_private_ip>:~/
-```
-
-## 8. control-plane에서 workload를 배포합니다
+## 7. control-plane에서 workload를 배포합니다
 
 control-plane에 접속한 뒤 아래 명령을 실행합니다.
 
@@ -157,11 +136,13 @@ kubectl apply -k ~/cluster/workloads/apps/checkins/overlays/dev
 
 즉 control-plane 초기 설정 단계에서는 bootstrap 리소스가 먼저 올라가고, 이후 `kubectl apply -k ~/cluster/workloads/apps/checkins/overlays/dev` 를 실행할 때 `base` 를 포함한 실제 앱 workload 가 함께 적용됩니다.
 
+현재는 수동 `kubectl apply -k` 편의를 위해 Ansible 이 control-plane 홈 디렉터리에 Checkins workload 경로만 임시로 복사해 둡니다. 이 복사는 Argo CD 전환 전 단계에서 쓰는 임시 편의용입니다.
+
 앱 이미지를 바꾸고 싶다면 [patch-image.yaml](../cluster/workloads/apps/checkins/overlays/dev/patch-image.yaml) 에서 Docker Hub 이미지 이름과 태그를 바꿔주면 됩니다.
 
-현재는 `cluster/` 폴더 복사와 workload apply를 Ansible에 자동으로 넣어두지 않았습니다. 이후 CI/CD를 연결할 때 Git에서 직접 받아 배포하는 흐름으로 확장할 수 있다고 보았기 때문입니다.
+현재는 workload apply 자체를 Ansible에 넣지는 않았고, Checkins workload 경로 복사까지만 임시로 자동화해 둔 상태입니다. 이후 배포 방식은 CI/CD pipeline 구성에 따라 수정될 수 있습니다.
 
-## 9. 인프라와 클러스터가 잘 떴는지 확인합니다
+## 8. 인프라와 클러스터가 잘 떴는지 확인합니다
 
 먼저 ALB DNS 이름을 확인합니다.
 
